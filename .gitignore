@@ -1,0 +1,28 @@
+# Golang
+/bin/
+/build/
+/dist/
+*.exe
+*.test
+*.out
+
+# Go modules
+/go.sum
+.idea
+# OS
+.DS_Store
+Thumbs.db
+
+# Env files (very important!)
+.env
+tests/.env.test
+!env.example
+
+# Migrations cache (golang-migrate)
+*.lock
+
+# Logs
+*.log
+
+# Test artifacts
+/coverage.out
