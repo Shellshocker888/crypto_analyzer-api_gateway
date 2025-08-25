@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package portfolio;
+
+option go_package = "crypto_analyzer-api_gateway/gen/go/portfolio;portfoliopb";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
+service PortfolioService {
+  rpc CreateNewPortfolio(CreateNewPortfolioRequest) returns (CreateNewPortfolioResponse);
+  rpc GetPortfolioContentById(GetPortfolioContentByIdRequest) returns (GetPortfolioContentByIdResponse);
+  rpc UpsertAsset(UpsertAssetRequest) returns (google.protobuf.Empty);
+  rpc DeleteAsset(DeleteAssetRequest) returns (google.protobuf.Empty);
+  rpc GetPortfolioProfit(GetPortfolioProfitRequest) returns (GetPortfolioProfitResponse);
+  rpc GetAllPortfolios(google.protobuf.Empty) returns (GetAllPortfoliosResponse);
+  rpc GetPortfolioHistory(GetPortfolioHistoryRequest) returns (GetPortfolioHistoryResponse);
+  rpc GetPublicPortfolios(GetPublicPortfoliosRequest) returns (GetPublicPortfoliosResponse);
+}
+
+message CreateNewPortfolioRequest {
+  string name = 1;
+  google.protobuf.BoolValue is_public = 2;
+}
+
+message CreateNewPortfolioResponse {
+  int32 id = 1;
+  string name = 2;
+  google.protobuf.BoolValue is_public = 3;
+}
+
+message GetPortfolioContentByIdRequest {
+  int32 id = 1;
+}
+
+message GetPortfolioContentByIdResponse {
+  map<string, double> assets = 1;
+}
+
+message UpsertAssetRequest {
+  int32 portfolio_id = 1;
+  string symbol = 2;
+  double amount = 3;
+}
+
+message DeleteAssetRequest {
+  int32 portfolio_id = 1;
+  string symbol = 2;
+}
+
+message AllUserPortfolio {
+  int32 id = 1;
+  string name = 2;
+  google.protobuf.BoolValue is_public = 3;
+}
+
+message GetAllPortfoliosResponse {
+  repeated AllUserPortfolio portfolios = 1;
+}
+
+message GetPortfolioHistoryRequest {
+  int32 id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message PricePoint {
+  string timestamp = 1;
+  double value = 2;
+}
+
+message PricePoints {
+  repeated PricePoint points = 1;
+}
+
+message GetPortfolioHistoryResponse {
+  map<string, PricePoints> history = 1;
+}
+
+message GetPublicPortfoliosRequest {
+  int32 user_id = 1;
+}
+
+message PublicPortfolio {
+  int32 portfolio_id = 1;
+  string name = 2;
+  map<string, double> assets = 3;
+}
+
+message GetPublicPortfoliosResponse {
+  repeated PublicPortfolio portfolios = 1;
+}
+
+message GetPortfolioProfitRequest {
+  int64 id = 1;
+}
+
+message AssetProfit {
+  string symbol = 1;
+  double amount = 2;
+  double invested = 3;
+  double current_price = 4;
+  double current_value = 5;
+  double profit = 6;
+}
+
+message GetPortfolioProfitResponse {
+  repeated AssetProfit assets = 1;
+}
