@@ -2,10 +2,16 @@ package app
 
 import (
 	"context"
+	authpb "crypto_analyzer-api_gateway/gen/go/auth"
+	portfoliopb "crypto_analyzer-api_gateway/gen/go/portfolio"
 	"crypto_analyzer-api_gateway/internal/config"
+	"crypto_analyzer-api_gateway/internal/controller/middleware"
+	"crypto_analyzer-api_gateway/internal/controller/middleware/auth"
+	portfolioController "crypto_analyzer-api_gateway/internal/controller/portfolio"
 	"crypto_analyzer-api_gateway/internal/infrastructure/logger"
-	auth2 "crypto_analyzer-api_gateway/internal/transport/http/auth/middleware"
-	"crypto_analyzer-api_gateway/internal/transport/http/portfolio/handler"
+	portfolioGRPC "crypto_analyzer-api_gateway/internal/infrastructure/portfolio/grpc"
+
+	"crypto_analyzer-api_gateway/internal/usecase/portfolio"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
@@ -37,6 +43,10 @@ func Start(ctx context.Context) error {
 	}
 	defer authConn.Close()
 
+	authClientProto := authpb.NewAuthServiceClient(authConn)
+
+	authMiddlewareVerifier := auth.NewAuthMiddlewareVerifier(authClientProto)
+
 	portfolioConn, err := grpc.NewClient(cfg.PortfolioServiceURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Error("failed to connect portfolio service", zap.Error(err))
@@ -44,23 +54,32 @@ func Start(ctx context.Context) error {
 	}
 	defer portfolioConn.Close()
 
+	portfolioServiceClientProto := portfoliopb.NewPortfolioServiceClient(portfolioConn)
+	portfolioServiceClientContracted := portfolioGRPC.NewPortfolioServiceClient(portfolioServiceClientProto)
+
+	portfolioServiceClient := portfolio.NewPortfolioServiceUsecase(portfolioServiceClientContracted)
+	portfolioServiceController := portfolioController.NewPortfolioController(portfolioServiceClient)
 	app := fiber.New()
 
-	app.Use(auth2.LoggerMiddleware())
-	app.Use(auth2.TraceMiddleware())
-
-	authClient := auth2.NewGRPCClient(authConn)
-	portfolioClient := handler.NewGRPCClient(portfolioConn)
+	app.Use(middleware.LoggerMiddleware)
+	app.Use(middleware.TraceMiddleware)
 
 	app.Get("/auth/ping", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})
 
-	app.Post("/portfolios", authClient.WithAuth(), portfolioClient.CreatePortfolioHandler)
+	app.Post("/portfolios", authMiddlewareVerifier.AuthVerify, portfolioServiceController.CreateNewPortfolio)
+	app.Get("/portfolio/:id", authMiddlewareVerifier.AuthVerify, portfolioServiceController.GetPortfolioContentById)
+	app.Post("/portfolio/:id/asset", authMiddlewareVerifier.AuthVerify, portfolioServiceController.UpsertAsset)
+	app.Delete("/portfolio/:id/asset", authMiddlewareVerifier.AuthVerify, portfolioServiceController.DeleteAsset)
+	app.Get("/portfolios", authMiddlewareVerifier.AuthVerify, portfolioServiceController.GetAllPortfolios)
+	app.Get("/portfolio/:id/history", authMiddlewareVerifier.AuthVerify, portfolioServiceController.GetPortfolioHistory)
+	app.Get("/portfolio/public/:username", portfolioServiceController.GetPublicPortfolios)
 
 	log.Info("Starting API Gateway", zap.String("port", cfg.Port))
-	if err = app.Listen(":" + cfg.Port); err != nil {
+	if err := app.Listen(":" + cfg.Port); err != nil {
 		log.Error("failed to start gateway", zap.Error(err))
+		return fmt.Errorf("gateway failed: %w", err)
 	}
 
 	return nil

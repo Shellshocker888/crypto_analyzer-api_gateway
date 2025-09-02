@@ -28,9 +28,13 @@ type PortfolioHistoryData struct {
 	Size int `json:"size"`
 }
 
+type PricePoint struct {
+	Timestamp string  `json:"timestamp"`
+	Value     float64 `json:"value"`
+}
+
 type PortfolioHistory struct {
-	Time  string  `json:"time"`
-	Price float64 `json:"price"`
+	History map[string][]PricePoint `json:"history"`
 }
 
 type PublicPortfolio struct {

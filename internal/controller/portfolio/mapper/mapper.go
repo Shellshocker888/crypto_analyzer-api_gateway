@@ -1,8 +1,8 @@
 package mapper
 
 import (
-	portfoliopb "crypto_analyzer-api_gateway/gen/go/portfolio"
-	"crypto_analyzer-api_gateway/internal/transport/http/portfolio/dto"
+	"crypto_analyzer-api_gateway/internal/controller/portfolio/dto"
+	"crypto_analyzer-api_gateway/internal/domain/portfolio"
 	"github.com/gofiber/fiber/v2"
 	"google.golang.org/grpc/codes"
 )
@@ -38,31 +38,33 @@ func GrpcCodeToHTTPError(code codes.Code, msg string) *dto.HTTPError {
 	}
 }
 
-func MapPortfolios(portfolios []*portfoliopb.AllUserPortfolio) []dto.Portfolio {
+func MapPortfolios(portfolios []portfolio.Portfolio) []dto.Portfolio {
 	portfoliosSlice := make([]dto.Portfolio, 0, len(portfolios))
 
 	for _, v := range portfolios {
 		portfoliosSlice = append(portfoliosSlice, dto.Portfolio{
 			Id:       int(v.Id),
 			Name:     v.Name,
-			IsPublic: v.IsPublic.GetValue(),
+			IsPublic: v.IsPublic,
 		})
 	}
 
 	return portfoliosSlice
 }
 
-func MapHistory(portfolioHistory map[string]*portfoliopb.PricePoints) map[string][]*dto.PortfolioHistory {
-	history := make(map[string][]*dto.PortfolioHistory)
+func MapDomainToDTOHistory(portfolioHistory portfolio.PortfolioHistory) dto.PortfolioHistory {
+	history := dto.PortfolioHistory{History: make(map[string][]dto.PricePoint, len(portfolioHistory.History))}
 
-	for key, v := range portfolioHistory {
+	for key, v := range portfolioHistory.History {
 		if v == nil {
 			continue
 		}
-		for _, m := range v.Points {
-			history[key] = append(history[key], &dto.PortfolioHistory{
-				Time:  m.Timestamp,
-				Price: m.Value,
+
+		history.History[key] = make([]dto.PricePoint, 0, len(v))
+		for _, m := range v {
+			history.History[key] = append(history.History[key], dto.PricePoint{
+				Timestamp: m.Timestamp,
+				Value:     m.Value,
 			})
 		}
 	}
@@ -70,7 +72,7 @@ func MapHistory(portfolioHistory map[string]*portfoliopb.PricePoints) map[string
 	return history
 }
 
-func MapPublicPortfolios(portfolios []*portfoliopb.PublicPortfolio) []dto.PublicPortfolio {
+func MapPublicPortfolios(portfolios []portfolio.PublicPortfolio) []dto.PublicPortfolio {
 	publicPortfolios := make([]dto.PublicPortfolio, 0, len(portfolios))
 
 	for _, v := range portfolios {
