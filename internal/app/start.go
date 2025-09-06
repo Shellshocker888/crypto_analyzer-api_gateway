@@ -10,6 +10,8 @@ import (
 	portfolioController "crypto_analyzer-api_gateway/internal/controller/portfolio"
 	"crypto_analyzer-api_gateway/internal/infrastructure/logger"
 	portfolioGRPC "crypto_analyzer-api_gateway/internal/infrastructure/portfolio/grpc"
+	"crypto_analyzer-api_gateway/internal/infrastructure/ratelimiter"
+	"crypto_analyzer-api_gateway/internal/infrastructure/redis"
 
 	"crypto_analyzer-api_gateway/internal/usecase/portfolio"
 	"fmt"
@@ -36,6 +38,21 @@ func Start(ctx context.Context) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	redisClient, err := redis.InitRedisClient(ctx, cfg.RedisCfg)
+	if err != nil {
+		log.Error("failed to init redis client", zap.Error(err))
+		return fmt.Errorf("failed to init redis client: %w", err)
+	}
+	defer redisClient.Close()
+
+	ratelimiterObj := ratelimiter.NewRateLimiter(redisClient, 5, 0.3)
+	rlMw := middleware.NewRateLimiterMiddleware(ratelimiterObj, func(c *fiber.Ctx) string {
+		if uid := c.Get("X-User-ID"); uid != "" {
+			return "user:" + uid
+		}
+		return "ip:" + c.IP()
+	}, 10, 5)
+
 	authConn, err := grpc.NewClient(cfg.AuthServiceURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Error("failed to connect auth service", zap.Error(err))
@@ -59,12 +76,18 @@ func Start(ctx context.Context) error {
 
 	portfolioServiceClient := portfolio.NewPortfolioServiceUsecase(portfolioServiceClientContracted)
 	portfolioServiceController := portfolioController.NewPortfolioController(portfolioServiceClient)
+
 	app := fiber.New()
 
 	app.Use(middleware.LoggerMiddleware)
 	app.Use(middleware.TraceMiddleware)
+	app.Use(rlMw.Handler)
 
-	app.Get("/auth/ping", func(c *fiber.Ctx) error {
+	app.Get("/limitertest", func(c *fiber.Ctx) error {
+		return c.SendString("OK, not limited")
+	})
+
+	app.Get("/ping", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})
 

@@ -5,4 +5,11 @@ type Config struct {
 	AuthServiceURL      string
 	PortfolioServiceURL string
 	AlertServiceURL     string
+	RedisCfg            *RedisConfig
+}
+
+type RedisConfig struct {
+	Addr      string
+	Password  string
+	SessionDB int
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/joho/godotenv"
 	"os"
+	"strconv"
 )
 
 func getEnv(key string) (string, error) {
@@ -48,10 +49,33 @@ func LoadConfig() (*model.Config, error) {
 		return nil, fmt.Errorf("failed to load alertServiceURL config: %w", err)
 	}
 
+	cfgRedis := &model.RedisConfig{}
+
+	cfgRedis.Addr, err = getEnv("REDIS_ADDR")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load redis config: %w", err)
+	}
+	cfgRedis.Password, err = getEnv("REDIS_PASSWORD")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load redis config: %w", err)
+	}
+
+	var redisDBString string
+	redisDBString, err = getEnv("REDIS_DB")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load redis config: %w", err)
+	}
+
+	cfgRedis.SessionDB, err = strconv.Atoi(redisDBString)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load redis config: %w", err)
+	}
+
 	return &model.Config{
 		Port:                port,
 		AuthServiceURL:      authServiceURL,
 		PortfolioServiceURL: portfolioServiceURL,
 		AlertServiceURL:     alertServiceURL,
+		RedisCfg:            cfgRedis,
 	}, nil
 }

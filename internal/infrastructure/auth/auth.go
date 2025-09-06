@@ -1,4 +1,4 @@
-package grpc
+package auth
 
 import (
 	authpb "crypto_analyzer-api_gateway/gen/go/auth"
