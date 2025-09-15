@@ -64,6 +64,10 @@ Crypto Analyzer API Gateway — высокопроизводительный ш�
 - PostgreSQL 13+
 - Redis 6+
 - Protoc + gRPC plugin
+- Prometheus 2+ (для сбора метрик)
+- Alertmanager 0.27+ (для обработки алертов)
+- Grafana 9+ (для визуализации метрик)
+
 
 
 ## API Reference
