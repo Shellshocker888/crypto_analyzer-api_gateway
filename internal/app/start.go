@@ -9,13 +9,15 @@ import (
 	"crypto_analyzer-api_gateway/internal/controller/middleware/auth"
 	portfolioController "crypto_analyzer-api_gateway/internal/controller/portfolio"
 	"crypto_analyzer-api_gateway/internal/infrastructure/logger"
+	"crypto_analyzer-api_gateway/internal/infrastructure/metrics"
 	portfolioGRPC "crypto_analyzer-api_gateway/internal/infrastructure/portfolio/grpc"
 	"crypto_analyzer-api_gateway/internal/infrastructure/ratelimiter"
 	"crypto_analyzer-api_gateway/internal/infrastructure/redis"
-
 	"crypto_analyzer-api_gateway/internal/usecase/portfolio"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/adaptor"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -79,14 +81,21 @@ func Start(ctx context.Context) error {
 
 	app := fiber.New()
 
+	// Инициализируем метрики один раз
+	metrics.InitMetrics()
+
 	app.Use(middleware.LoggerMiddleware)
 	app.Use(middleware.TraceMiddleware)
+	app.Use(middleware.MetricsMiddleware)
 	app.Use(rlMw.Handler)
 
-	app.Get("/limitertest", func(c *fiber.Ctx) error {
-		return c.SendString("OK, not limited")
-	})
+	// Остальные эндпоинты
+	app.Get("/limitertest", func(c *fiber.Ctx) error { return c.SendString("OK, not limited") })
 
+	// Регистрируем только один раз и используем глобальный registry
+	app.Get("/metrics", adaptor.HTTPHandler(
+		promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{}),
+	))
 	app.Get("/ping", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})

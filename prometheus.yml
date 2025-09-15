@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'api-gateway'
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node_exporter_api-gateway:9100']
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - "alertmanager_api-gateway:9093"
+
+rule_files:
+  - "alert_rules.yml"

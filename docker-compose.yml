@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:latest
+    container_name: redis_api-gateway
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - monitoring
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus_api-gateway
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alert_rules.yml:/etc/prometheus/alert_rules.yml
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:11.2.2
+    container_name: grafana_api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - monitoring
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager_api-gateway
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node_exporter_api-gateway
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+volumes:
+  redis-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  monitoring:

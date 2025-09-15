@@ -1,0 +1,65 @@
+groups:
+  - name: service_alerts
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Сервис {{ $labels.instance }} недоступен"
+          description: "Prometheus не может достучаться до сервиса {{ $labels.instance }}"
+
+      - alert: High5xxErrors
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) by (instance) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Слишком много 5xx ошибок на {{ $labels.instance }}"
+          description: "Больше 0.1 ошибок/секунда за последние 5 минут"
+
+      - alert: High429Errors
+        expr: sum(rate(http_requests_total{status="429"}[5m])) by (instance) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Много 429 ошибок на {{ $labels.instance }}"
+          description: "Пользователи упираются в лимиты, >5 req/s"
+
+      - alert: HighLatency95
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокая 95% латентность запросов"
+          description: "95% запросов дольше 500ms"
+
+      - alert: HighRPS
+        expr: sum(rate(http_requests_total[5m])) by (instance) > 1000
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Резкий рост RPS на {{ $labels.instance }}"
+          description: "Возможный DDoS (>1000 req/s)"
+
+      - alert: HighRateLimitedRequests
+        expr: sum(rate(rate_limited_requests[5m])) by (instance) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Много rate-limited запросов"
+          description: "Пользователи упираются в лимиты, >5 req/s"
+
+      - alert: HighCPU
+        expr: 100 - (avg by(instance)(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Высокая загрузка CPU на {{ $labels.instance }}"
+          description: "CPU >90%"

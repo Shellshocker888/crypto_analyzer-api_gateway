@@ -3,6 +3,7 @@ package middleware
 import (
 	"crypto_analyzer-api_gateway/internal/domain"
 	"crypto_analyzer-api_gateway/internal/infrastructure/logger"
+	"crypto_analyzer-api_gateway/internal/infrastructure/metrics"
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
 	"strconv"
@@ -61,8 +62,11 @@ func (l *RateLimiterMiddleware) Handler(c *fiber.Ctx) error {
 	}
 
 	if !allowed {
+		metrics.IncRateLimited()
+
 		log.Warn("too many requests", zap.String("key", key))
 		c.Set("Retry-After", strconv.Itoa(int(retry.Seconds())))
+
 		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
 			"error": "too many requests",
 		})

@@ -7,6 +7,7 @@
 - [API Reference](#api-reference)
 - [Architecture](#architecture)
 - [Security](#security)
+- [Monitoring](#monitoring)
 
 
 ## Overview
@@ -100,3 +101,8 @@ JWT Access и Refesh токены через Auth Service
 Middleware проверяет Authorization header
 Логирование trace-id для каждого запроса
 ````
+
+## Monitoring
+
+Для мониторинга состояния API Gateway используется **Prometheus** и **Alertmanager**.  
+Все метрики и алерты описаны подробно в отдельной документации: [docs/monitoring.md](docs/monitoring.md)
